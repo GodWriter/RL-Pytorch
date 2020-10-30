@@ -59,3 +59,17 @@ class GridEnv(gym.Env):
         r = 0.0 if key not in self.rewards else self.rewards[key]
 
         return next_state, r, is_terminal, {}
+
+    def render(self, mode='human', close=False):
+        if close:
+            if self.viewer is not None:
+                self.viewer.close()
+                self.viewer = None
+            return
+
+        if self.viewer is None:
+            from gym.envs.classic_control import rendering
+            self.viewer = rendering.Viewer(width=600, height=400)
+
+            # 创建网格世界
+            pass

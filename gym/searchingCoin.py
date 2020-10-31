@@ -17,6 +17,10 @@ class GridEnv(gym.Env):
         self.states =[1, 2, 3, 4, 5, 7, 8] # 状态空间
         self.actions = ['n', 'e', 's', 'w'] # 动作空间
 
+        # 定义机器人可能的位置，提前计算好了
+        self.x=[140,220,300,380,460,140,300,460]
+        self.y=[250,250,250,250,250,150,150,150]
+
         # 定义终止状态
         self.terminate_states = dict()
         self.terminate_states[6] = 1
@@ -60,6 +64,10 @@ class GridEnv(gym.Env):
 
         return next_state, r, is_terminal, {}
 
+    def _reset(self):
+        self.state = self.states[int(random.random() * len(self.states))]
+        return self.state
+
     def render(self, mode='human', close=False):
         if close:
             if self.viewer is not None:
@@ -72,4 +80,47 @@ class GridEnv(gym.Env):
             self.viewer = rendering.Viewer(width=600, height=400)
 
             # 创建网格世界
-            pass
+            self.line1 = rendering.Line((100,300),(500,300))
+            self.line2 = rendering.Line((100, 200), (500, 200))
+            self.line3 = rendering.Line((100, 300), (100, 100))
+            self.line4 = rendering.Line((180, 300), (180, 100))
+            self.line5 = rendering.Line((260, 300), (260, 100))
+            self.line6 = rendering.Line((340, 300), (340, 100))
+            self.line7 = rendering.Line((420, 300), (420, 100))
+            self.line8 = rendering.Line((500, 300), (500, 100))
+            self.line9 = rendering.Line((100, 100), (180, 100))
+            self.line10 = rendering.Line((260, 100), (340, 100))
+            self.line11 = rendering.Line((420, 100), (500, 100))
+
+            # 创建第一个骷髅
+            self.kulo1 = rendering.make_circle(40)
+            self.kulo1.add_attr(rendering.Transform(translation=(140, 150))).set_color(0, 0, 0)
+
+            # 创建第二个骷髅
+            self.kulo2 = rendering.make_circle(40)
+            self.kulo2.add_attr(rendering.Transform(translation=(460, 150))).set_color(0, 0, 0)
+
+            # 创建金条
+            self.gold = rendering.make_circle(40)
+            self.gold.add_attr(rendering.Transform(translation=(300, 150))).set_color(1, 0.9, 0)
+
+            # 创建机器人
+            self.robot = rendering.make_circle(30)
+            self.robottrans = rendering.Transform()
+            self.robot.add_attr(self.robottrans).set_color(0.8, 0.6, 0.4)
+
+            for i in range(1, 12):
+                locals()['self.line%d'%i].set_color(0, 0, 0) # 设置线条颜色
+                self.viewer.add_geom(locals()['self.line%d'%i]) # 渲染到屏幕
+
+            self.viewer.add_geom(self.kulo1)
+            self.viewer.add_geom(self.kulo2)
+            self.viewer.add_geom(self.gold)
+            self.viewer.add_geom(self.robot)
+
+        if self.state is None:
+            return None
+
+        self.robottrans.set_translation(self.x[self.state - 1], self.y[self.state - 1])
+
+        return self.viewer.render(return_rgb_array = mode=='rgb_array')

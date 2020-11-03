@@ -53,11 +53,11 @@ class GridMDP:
                 for action in self.action_space:
                     state_ = self.transform(state, action)
                     if state_ in self.terminal_states:
-                        q_s_a[action] = 0
+                        q_s_a[action] = 0 # 完成目标
                     elif state_ != state:
-                        q_s_a[action] = v_s_[state_]
+                        q_s_a[action] = v_s_[state_] # 下一状态的总体价值
                     else:
-                        q_s_a[action] = v_s_[state]
+                        q_s_a[action] = v_s_[state] # 保持当前状态不变
 
                 # 更新价值表
                 self.value_space[state] = sum([self.policy[action] * (self.reward + self.gamma * q_s_a[action])

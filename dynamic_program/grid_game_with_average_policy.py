@@ -37,7 +37,31 @@ class GridMDP:
         return state_
 
     def learn(self):
-        pass
+        """
+        Average Policy.
+        :return:
+        """
+
+        while True:
+            print(self.value_space)
+            v_s_ = self.value_space.copy()
+
+            for state in self.state_space:
+                v_s_a = pd.Series()
+                for action in self.action_space:
+                    state_ = self.transform(state, action)
+                    if state_ in self.terminal_states:
+                        v_s_a[action] = 0
+                    elif state_ != state:
+                        v_s_a[action] = v_s_[state_]
+                    else:
+                        v_s_a[action] = v_s_[state]
+                self.value_space[state] = sum([self.policy[action] * (self.reward + self.gamma * v_s_a[action]) for action in self.action_space])
+
+            if (np.abs(v_s_ - self.value_space) < 1e-8).all():
+                break
+
+        return self.value_space
 
 
 def main():
@@ -54,6 +78,9 @@ def main():
                   action_space=action_space,
                   reward=-1,
                   gamma=1)
+
+    # 开始
+    mdp.learn()
 
 
 if __name__ == '__main__':

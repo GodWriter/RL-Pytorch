@@ -29,6 +29,7 @@ class GridMDP:
         dir = self.__action_dir[action]
         state_ = np.array(state) + dir
 
+        # 判断更新后的状态是否在状态空间中，true更新状态，false保持原始状态
         if (state_ >= 0).all() and (state_ < 4).all():
             state_ = tuple(state_)
         else:
@@ -47,17 +48,22 @@ class GridMDP:
             v_s_ = self.value_space.copy()
 
             for state in self.state_space:
-                v_s_a = pd.Series()
+                q_s_a = pd.Series() # 记录当前状态下，采取不同动作能获得的价值
+
                 for action in self.action_space:
                     state_ = self.transform(state, action)
                     if state_ in self.terminal_states:
-                        v_s_a[action] = 0
+                        q_s_a[action] = 0
                     elif state_ != state:
-                        v_s_a[action] = v_s_[state_]
+                        q_s_a[action] = v_s_[state_]
                     else:
-                        v_s_a[action] = v_s_[state]
-                self.value_space[state] = sum([self.policy[action] * (self.reward + self.gamma * v_s_a[action]) for action in self.action_space])
+                        q_s_a[action] = v_s_[state]
 
+                # 更新价值表
+                self.value_space[state] = sum([self.policy[action] * (self.reward + self.gamma * q_s_a[action])
+                                               for action in self.action_space])
+
+            # self.value_space代表当前价值表，v_s_代表上一价值表
             if (np.abs(v_s_ - self.value_space) < 1e-8).all():
                 break
 

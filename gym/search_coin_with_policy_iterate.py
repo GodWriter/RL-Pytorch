@@ -1,9 +1,9 @@
 import gym
-import numpy
+import time
+import numpy as np
 import random
-import logging
+import pandas as pd
 
-from gym import spaces
 from gym.utils import seeding
 
 
@@ -12,7 +12,7 @@ class GridEnv(gym.Env):
                 'video.frames_per_second': 2}
 
     def __init__(self):
-        self.states = [1, 2, 3, 4, 5, 6, 7, 8]  # 状态空间
+        self.states = [1, 2, 3, 4, 5]  # 状态空间
         self.actions = ['n', 'e', 's', 'w']  # 动作空间
 
         # 定义机器人可能的位置，提前计算好了
@@ -45,25 +45,28 @@ class GridEnv(gym.Env):
         self.t['5_s'] = 8
         self.t['5_w'] = 4
 
+        # 初始化gamma
+        self.gamma = 0.5
+
+        # 初始化值函数表
+        self.value_space = pd.Series(np.zeros((len(self.states))), index=self.states)
+
+        # 初始化策略表
+        self.policy = pd.Series(data=np.random.choice(self.actions, size=(len(self.states))), index=self.states)
+
         self.seed()
         self.viewer = None
         self.state = None
 
     def step(self, action):
         state = self.state  # 系统当前状态
-
-        if state in self.terminate_states:
-            return state, 0, True, {}  # 下一时刻动作，回报，是否终止，调试信息
-
         key = "%d_%s" % (state, action)  # 状态和动作组合为状态转移字典的键值
 
         # 状态转移
         next_state = self.t[key] if key in self.t else state
-        self.state = next_state
-
         is_terminal = True if next_state in self.terminate_states else False
-        r = 0.0 if key not in self.rewards else self.rewards[key]
 
+        r = 0.0 if key not in self.rewards else self.rewards[key]
         return next_state, r, is_terminal, {}
 
     def reset(self):
@@ -156,3 +159,70 @@ class GridEnv(gym.Env):
         self.robottrans.set_translation(self.x[self.state - 1], self.y[self.state - 1])
 
         return self.viewer.render(return_rgb_array=mode == 'rgb_array')
+
+    def policy_evaluate(self):
+        while True:
+            v_s_ = self.value_space.copy()
+            print(v_s_)
+
+            for state in self.states:
+                self.state = state
+
+                action = self.policy[state]
+                next_state, r, is_terminal, _ = self.step(action)
+
+                self.value_space[state] = v_s_[state] + self.gamma * r
+
+            if (np.abs(v_s_ - self.value_space) < 1e-2).all():
+                break
+
+        return self.value_space
+
+    def policy_improve(self):
+        policy_ = pd.Series(data=np.random.choice(self.actions, size=(len(self.states))), index=self.states)
+
+        for state in self.states:
+            q_s_a = pd.Series()
+            for action in self.actions:
+                next_state, r, is_terminal, _ = self.step(action)
+                q_s_a[action] = self.value_space[state] + self.gamma * r
+
+            max_v = q_s_a[q_s_a == q_s_a.max()].index
+            policy_[state] = np.random.choice(max_v)
+
+        return policy_
+
+    def policy_iterate(self):
+        while True:
+            print(self.policy)
+            v_s = self.policy_evaluate()
+            policy_ = self.policy_improve()
+
+            if (policy_ == self.policy).all():
+                break
+            else:
+                self.policy = policy_
+
+        return self.policy
+
+
+def main():
+    env = gym.make("searchCoin-v0")
+    env.policy_iterate()
+
+    for i in range(10):
+        env.reset()
+        is_terminal = False
+        next_state = np.random.choice(env.states)
+
+        while not is_terminal:
+            env.render()
+            env.state = next_state
+            action = env.policy[env.state]
+            next_state, r, is_terminal, _ = env.step(action)
+
+            time.sleep(0.2)
+
+
+if __name__ == '__main__':
+    main()

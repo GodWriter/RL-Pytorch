@@ -81,7 +81,7 @@ class GridMdp:
 
         self.pi = {} # 定义随机策略
         for state in self.trans:
-            self.policy[state] = random.choice(list(self.trans[state].keys()))
+            self.pi[state] = random.choice(list(self.trans[state].keys()))
         self.last_pi = self.pi.copy()
 
         self.value_space = {} # 定义价值表
@@ -121,3 +121,79 @@ class GridMdp:
                 print('|')
 
 
+def monte_carlo_random(grid_mdp):
+    data_list = []
+
+    for _ in range(100000):
+        one_sample_list = []
+        state = random.choice(grid_mdp.states)
+
+        # 如果直接是终态，放弃这一笔数据
+        if state in grid_mdp.terminate_states:
+            continue
+
+        sample_end = False
+        while sample_end != True:
+            action = random.choice(list(grid_mdp.trans[state].keys()))
+            next_state, state_reward, is_terminate, return_info = grid_mdp.transform(state, action)
+            one_sample_list.append((state, action, state_reward))
+
+            state = next_state
+            sample_end = is_terminate
+        data_list.append(one_sample_list)
+
+    return data_list
+
+
+def mc_value_func(data_list, grid_mdp):
+    state_value_dic = {}
+
+    for one_sample_list in data_list: # 遍历不同的episode, 计算每个state出现的次数，以及总体收益
+        G = 0.0
+        for idx in range(len(one_sample_list)-1, -1, -1): # 遍历一个episode中不同的状态，从后往前遍历，方便计算折扣后的收益
+            one_sample = one_sample_list[idx]
+            state, _, state_reward = one_sample[0], one_sample[1], one_sample[2]
+
+            # 若是当前state第一次出现，加入到词典中
+            if not state in state_value_dic:
+                state_value_dic[state] = [0.0, 0.0] # 0维记录当前state出现的次数，1维记录当前state总共获得的收益
+
+            G = state_reward + grid_mdp.gamma * G
+            state_value_dic[state][0] += 1
+            state_value_dic[state][1] += G
+
+    for state in state_value_dic:
+        if state in grid_mdp.value_space and state_value_dic[state][0] > 0: # 状态出现次数为0的不用记录
+            grid_mdp.value_space[state] = state_value_dic[state][1] / state_value_dic[state][0]
+
+    grid_mdp.print_states()
+
+
+def mc_value_func_recursion(data_list, grid_mdp):
+    state_value_dic = {}
+
+    for one_sample_list in data_list:
+        G = 0.0
+        for idx in range(len(one_sample_list)-1, -1, -1):
+            one_sample = one_sample_list[idx]
+            state, _, state_reward = one_sample[0], one_sample[1], one_sample[2]
+
+            if not state in state_value_dic:
+                state_value_dic[state] = [0.0, 0.0]
+
+            G = state_reward + grid_mdp.gamma * G
+            state_value_dic[state][0] += 1
+            state_value_dic[state][1] += (G - state_value_dic[state][1]) / state_value_dic[state][0]
+
+    for state in state_value_dic:
+        if state in state_value_dic:
+            grid_mdp.value_space[state] = state_value_dic[state][1]
+    grid_mdp.print_states()
+
+
+grid_mdp = GridMdp()
+data_list = monte_carlo_random(grid_mdp)
+mc_value_func(data_list, grid_mdp)
+mc_value_func_recursion(data_list, grid_mdp)
+
+print(grid_mdp.value_space)

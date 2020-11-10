@@ -129,8 +129,8 @@ def monte_carlo_random(grid_mdp):
         state = random.choice(grid_mdp.states)
 
         # 如果直接是终态，放弃这一笔数据
-        if state in grid_mdp.terminate_states:
-            continue
+        while state in grid_mdp.terminate_states:
+            state = random.choice(grid_mdp.states)
 
         sample_end = False
         while sample_end != True:

@@ -89,3 +89,99 @@ class GridMdp:
         for state in self.states:
             self.value_space[state] = 0.0
 
+    def get_random_action(self, state):
+        self.pi[state] = random.choice(list(self.trans[state].keys()))
+        return self.pi[state]
+
+    def transform(self, state, action):
+        next_state = state
+        state_reward = 0.0
+        is_terminate = True
+        return_info = {}
+
+        if state in self.terminate_states:
+            return next_state, state_reward, is_terminate, return_info
+        if state in self.trans:
+            if action in self.trans[state]:
+                next_state = self.trans[state][action]
+        if state in self.rewards:
+            if action in self.rewards[state]:
+                state_reward = self.rewards[state][action]
+        if not next_state in self.terminate_states:
+            is_terminate = False
+
+        return next_state, state_reward, is_terminate, return_info
+
+    def print_states(self):
+        for state in self.states:
+            if state in self.terminate_states:
+                print('*', end='')
+            else:
+                print(round(self.value_space[state], 2), end='')
+            if state % 5 == 0:
+                print('|')
+
+
+def epsilon_greedy(state_action_value_dic, state, epsilon):
+    action_list = list(state_action_value_dic[state].keys())
+    action_size = len(action_list)
+    action_prob = [epsilon / float(action_size)] * action_size
+
+    max_val = float('-inf')
+    max_idx = -1
+    for idx in range(action_size):
+        action = action_list[idx]
+        state_action_value = state_action_value_dic[state][action][1]
+        if state_action_value > max_val:
+            max_val = state_action_value
+            max_idx = idx
+
+    if max_idx < 0:
+        return np.random.choice(action_list)
+    else:
+        action_prob[max_idx] += (1 - epsilon)
+        epsilon_greedy_action = np.random.choice(action_list, p=action_prob) # action_prob和为1
+        return epsilon_greedy_action
+
+
+def monte_carlo_epsilon_greedy(grid_mdp):
+    state_action_value_dic = {}
+
+    for _ in range(100000):
+        one_sample_list = []
+        state = random.choice(grid_mdp.states)
+
+        while state in grid_mdp.terminate_states:
+            state = random.choice(grid_mdp.states)
+
+        sample_end = False
+        while sample_end != True:
+            if not state in state_action_value_dic:
+                state_action_value_dic[state] = {}
+            for action in grid_mdp.trans[state]:
+                if not action in state_action_value_dic[state]:
+                    state_action_value_dic[state][action] = [0.0, 0.0]
+
+            action = epsilon_greedy(state_action_value_dic, state, grid_mdp.epsilon)
+            next_state, state_reward, is_terminate, return_info = grid_mdp.transform(state, action)
+            one_sample_list.append((state, action, state_reward))
+            state = next_state
+            sample_end = is_terminate
+
+        G = 0.0
+        for idx in range(len(one_sample_list)-1, -1, -1):
+            one_sample = one_sample_list[idx]
+            state, action, state_reward = one_sample[0], one_sample[1], one_sample[2]
+
+            if not state in state_action_value_dic:
+                state_action_value_dic[state] = {}
+            if not action in state_action_value_dic[state]:
+                state_action_value_dic[state][action] = [0.0, 0.0]
+
+            G = state_reward + grid_mdp.gamma * G
+            state_action_value_dic[state][action][0] += 1
+            state_action_value_dic[state][action][1] += (G - state_action_value_dic[state][action][1]) / state_action_value_dic[state][action][0]
+
+
+grid_mdp = GridMdp()
+monte_carlo_epsilon_greedy(grid_mdp)

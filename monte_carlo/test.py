@@ -1,22 +1,24 @@
+# import gym
 import random
+import numpy as np
 
 
 class GriDMdp:
     def __init__(s):
         s.gamma = 0.9
+        s.epsilon = 0.1
         s.states = range(1, 26)
         s.actions = ['n', 'e', 's', 'w']
-        s.terminate_states = {15: 1.0, 4: -1.0, 9: -1.0, 11: -1.0, 12: -1.0, 23: -1.0, 24: -1.0, 25: -1.0}
+        s.terminate_states = {15: 1.0, 4: -1.0, 9: -1.0, \
+                              11: -1.0, 12: -1.0, 23: -1.0, 24: -1.0, 25: -1.0}
         s.trans = {}
         for state in s.states:
             if not state in s.terminate_states:
                 s.trans[state] = {}
-
         s.trans[1]['e'] = 2
         s.trans[1]['s'] = 6
         s.trans[2]['e'] = 3
         s.trans[2]['w'] = 1
-        s.trans[2]['s'] = 7
         s.trans[2]['s'] = 7
         s.trans[3]['e'] = 4
         s.trans[3]['w'] = 2
@@ -79,7 +81,7 @@ class GriDMdp:
                         s.rewards[state][action] = s.terminate_states[next_state]
         s.pi = {}
         for state in s.trans:
-            s.pi[state] = random.choice(list(s.trans[state].keys()))
+            s.pi[state] = random.choice(s.trans[state].keys())
         s.last_pi = s.pi.copy()
 
         s.v = {}
@@ -111,82 +113,83 @@ class GriDMdp:
     def print_states(s):
         for state in s.states:
             if state in s.terminate_states:
-                print("*", end='')
+                print
+                "*",
             else:
-                print(round(s.v[state], 2), end='')
+                print
+                round(s.v[state], 2),
             if state % 5 == 0:
-                print("|")
+                print
+                "|"
 
 
-def monte_carlo_random(grid_mdp):
-    data_list = []
+def epsilon_greey(state_action_value_dic, state, epsilon):
+    action_list = state_action_value_dic[state].keys()
+    len_action = len(action_list)
+    action_prob = [epsilon / float(len_action)] * len_action
+    max_val = float('-inf')
+    max_idx = -1
+    for idx in range(len_action):
+        action = action_list[idx]
+        state_action_value = state_action_value_dic[state][action][1]
+        if state_action_value > max_val:
+            max_val = state_action_value
+            max_idx = idx
+    if max_idx < 0:
+        return np.random.choice(action_list)
+    else:
+        action_prob[max_idx] += (1 - epsilon)
+        epsilon_greey_action = np.random.choice(action_list, p=action_prob)
+        return epsilon_greey_action
+
+
+def monte_carlo_epsilon_greey(grid_mdp):
+    '''Ëæ»úÑ¡Ôñ×´Ì¬£¬epsilon_greey²ßÂÔÑ¡Ôñ×´Ì¬ÏÂÃæµÄ¶¯×÷£¬Éú³ÉÊý¾Ý¼¯ºÏ'''
+    state_action_value_dic = {}
     for iter_idx in range(100000):
+        # print "-----------------------"
         one_sample_list = []
         state = random.choice(grid_mdp.states)
-        if state in grid_mdp.terminate_states:
-            continue
+        while (state in grid_mdp.terminate_states):
+            state = random.choice(grid_mdp.states)
         sample_end = False
         while sample_end != True:
-            # choose random strategy
-            action = random.choice(list(grid_mdp.trans[state].keys()))
+            if not state in state_action_value_dic:
+                state_action_value_dic[state] = {}
+            # choose epsilon_greey strategy
+            for action in grid_mdp.trans[state]:
+                if not action in state_action_value_dic[state]:
+                    state_action_value_dic[state][action] = [0.0, 0.0]
+            action = epsilon_greey(state_action_value_dic, state, grid_mdp.epsilon)
             next_state, state_reward, is_terminate, return_info = grid_mdp.transform(state, action)
             one_sample_list.append((state, action, state_reward))
             state = next_state
             sample_end = is_terminate
-        data_list.append(one_sample_list)
-    return data_list
 
-
-def mc_value_func(data_list, grid_mdp):
-    state_value_dic = {}
-    for one_sample_list in data_list:
+        # compute state_action_value
         G = 0.0
-        print("-----------------------")
-        print(one_sample_list)
+        # print one_sample_list
         for idx in range(len(one_sample_list) - 1, -1, -1):
             one_sample = one_sample_list[idx]
             state = one_sample[0]
             action = one_sample[1]
             state_reward = one_sample[2]
-            if not state in state_value_dic:
-                state_value_dic[state] = [0.0, 0.0]
+            if not state in state_action_value_dic:
+                state_action_value_dic[state] = {}
+            if not action in state_action_value_dic[state]:
+                state_action_value_dic[state][action] = [0.0, 0.0]
             G = state_reward + grid_mdp.gamma * G
-            state_value_dic[state][0] += 1
-            state_value_dic[state][1] += G
-            print(idx, one_sample, G)
-            print(state_value_dic)
-    for state in state_value_dic:
-        if state in grid_mdp.v and state_value_dic[state][0] > 0:
-            grid_mdp.v[state] = state_value_dic[state][1] / state_value_dic[state][0]
-    grid_mdp.print_states()
-
-
-def mc_value_func_recursion(data_list, grid_mdp):
-    state_value_dic = {}
-    for one_sample_list in data_list:
-        G = 0.0
-        print("-----------------------")
-        print(one_sample_list)
-        for idx in range(len(one_sample_list) - 1, -1, -1):
-            one_sample = one_sample_list[idx]
-            state = one_sample[0]
-            action = one_sample[1]
-            state_reward = one_sample[2]
-            if not state in state_value_dic:
-                state_value_dic[state] = [0.0, 0.0]
-            G = state_reward + grid_mdp.gamma * G
-            state_value_dic[state][0] += 1
-            state_value_dic[state][1] += (G - state_value_dic[state][1]) / state_value_dic[state][0]
-            print(idx, one_sample, G)
-            print(state_value_dic)
-    for state in state_value_dic:
-        if state in grid_mdp.v:
-            grid_mdp.v[state] = state_value_dic[state][1]
-    grid_mdp.print_states()
+            state_action_value_dic[state][action][0] += 1
+            state_action_value_dic[state][action][1] += (
+                        (G - state_action_value_dic[state][action][1]) / state_action_value_dic[state][action][0])
+        if iter_idx % 10000 == 0:
+            print
+            "-" * 18
+            for state in sorted(state_action_value_dic.keys()):
+                for action in sorted(state_action_value_dic[state]):
+                    print
+                    state, action, state_action_value_dic[state][action]
 
 
 grid_mdp = GriDMdp()
-data_list = monte_carlo_random(grid_mdp)
-mc_value_func(data_list, grid_mdp)
-mc_value_func_recursion(data_list, grid_mdp)
-
+monte_carlo_epsilon_greey(grid_mdp)

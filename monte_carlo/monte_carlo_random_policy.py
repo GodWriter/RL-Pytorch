@@ -84,6 +84,39 @@ class GridMdp:
             self.policy[state] = random.choice(list(self.trans[state].keys()))
         self.last_pi = self.pi.copy()
 
-        self.value_space = {}
+        self.value_space = {} # 定义价值表
         for state in self.states:
             self.value_space[state] = 0.0
+
+    def get_random_action(self, state):
+        self.pi[state] = random.choice(self.trans[state].keys())
+        return self.pi[state]
+
+    def transform(self, state, action):
+        next_state = state
+        state_reward = 0.0
+        is_terminate = True
+        return_info = {}
+
+        if state in self.terminate_states: # 若为终止状态，直接返回
+            return next_state, state_reward, is_terminate, return_info
+        if state in self.trans: # 若状态位于状态转移矩阵，且该动作存在
+            if action in self.trans[state]:
+                next_state = self.trans[state][action]
+        if state in self.rewards: # 若该状态位于rewards，且该动作存在
+            if action in self.rewards[state]:
+                state_reward = self.rewards[state][action]
+        if not next_state in self.terminate_states: # 判断是否为终止状态
+            is_terminate = False
+
+        return next_state, state_reward, is_terminate, return_info
+
+    def print_states(self):
+        for state in self.states:
+            if state in self.terminate_states:
+                print('*', end='')
+            else:
+                print(round(self.value_space[state], 2), end='')
+            if state % 5 == 0:
+                print('|')
+

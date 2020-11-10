@@ -111,9 +111,9 @@ class GriDMdp:
     def print_states(s):
         for state in s.states:
             if state in s.terminate_states:
-                print("*")
+                print("*", end='')
             else:
-                print(round(s.v[state], 2))
+                print(round(s.v[state], 2), end='')
             if state % 5 == 0:
                 print("|")
 

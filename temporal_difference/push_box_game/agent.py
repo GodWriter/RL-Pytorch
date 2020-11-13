@@ -1,5 +1,3 @@
-import os
-
 import numpy as np
 import pandas as pd
 
@@ -70,24 +68,37 @@ class QLearningAgent(Agent):
                 self.learn(observation, action_idx, reward, observation_, done)
                 observation = observation_
 
-                if done:
+                if done: # 要么推箱子推到墙壁了，要么推到终点了
                     self.save_train_parameter("q_table.pkl")
                     break
 
 
 class SarsaAgent(Agent):
-    pass
+    def learn(self, s, a, r, s_, done):
+        self.check_state_exist(s_)
 
+        q_predict = self.q_table[s][a]
+        if not done:
+            q_target = r + self.reward_decay * self.q_table[s_][self.choose_action(s_)] # Sarsa根据依旧根据 epsilon-贪婪策略 选择动作
+        else:
+            q_target = r # 如果是终态，该收益为最终收益
+        self.q_table[s][a] += self.learning_rate * (q_target - q_predict)
 
-# agent = Agent((0, 0, 1, 1))
-# agent.load_train_parameter('q_table.pkl')
+    def train(self, env, max_iterator=100):
+        self.load_train_parameter("q_table.pkl")
 
-# print(agent.q_table)
+        for episode in range(max_iterator):
+            observation = env.reset()
 
-# state_action = agent.q_table[(2, 3, 3, 3)]
-# print(state_action)
-#
-# state_action = state_action.reindex(np.random.permutation(state_action.index))
-# print(state_action)
-#
-# print(state_action.idxmin())
+            while True:
+                env.render()
+
+                action_idx = self.choose_action(observation)
+                observation_, reward, done, _ = env.step(self.actions[action_idx])
+
+                self.learn(observation, action_idx, reward, observation_, done)
+                observation = observation_
+
+                if done: # 要么推箱子推到墙壁了，要么推到终点了
+                    self.save_train_parameter("q_table.pkl")
+                    break

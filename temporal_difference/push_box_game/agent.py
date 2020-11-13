@@ -1,4 +1,3 @@
-import random
 import os
 
 import numpy as np
@@ -25,8 +24,8 @@ class Agent(object):
 
         if np.random.uniform() < self.epsilon: # epsilon-greedy policy
             state_action = self.q_table[observation]
-            state_action = state_action.reindex(np.random.permutation(state_action.index)) # 避免出现相同值，导致重复选择同一个动作
-            action_idx = state_action.argmax()
+            state_action = state_action.reindex(np.random.permutation(state_action.index)) # 重新排序原索引对应的值，避免价值相同的动作被重复选择
+            action_idx = state_action.idxmax() # 索引及对应值重新排序后，获取最大值所对应的索引
         else:
             action_idx = np.random.choice(range(len(self.actions)))
 
@@ -46,8 +45,49 @@ class Agent(object):
 
 
 class QLearningAgent(Agent):
-    pass
+    def learn(self, s, a, r, s_, done):
+        self.check_state_exist(s_)
+
+        q_predict = self.q_table[s][a]
+        if not done:
+            q_target = r + self.reward_decay * self.q_table[s_].max() # Q-learning根据贪婪策略选择动作
+        else:
+            q_target = r # 如果是终态，该收益为最终收益
+        self.q_table[s][a] += self.learning_rate * (q_target - q_predict)
+
+    def train(self, env, max_iterator=100):
+        self.load_train_parameter("q_table.pkl")
+
+        for episode in range(max_iterator):
+            observation = env.reset()
+
+            while True:
+                env.render()
+
+                action_idx = self.choose_action(observation)
+                observation_, reward, done, _ = env.step(self.actions[action_idx])
+
+                self.learn(observation, action_idx, reward, observation_, done)
+                observation = observation_
+
+                if done:
+                    self.save_train_parameter("q_table.pkl")
+                    break
 
 
 class SarsaAgent(Agent):
     pass
+
+
+# agent = Agent((0, 0, 1, 1))
+# agent.load_train_parameter('q_table.pkl')
+
+# print(agent.q_table)
+
+# state_action = agent.q_table[(2, 3, 3, 3)]
+# print(state_action)
+#
+# state_action = state_action.reindex(np.random.permutation(state_action.index))
+# print(state_action)
+#
+# print(state_action.idxmin())

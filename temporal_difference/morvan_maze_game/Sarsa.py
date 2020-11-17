@@ -4,7 +4,7 @@ import pandas as pd
 from temporal_difference.morvan_maze_game.maze_env import Maze
 
 
-class QLearningTable:
+class SarsaTable:
     def __init__(self, actions, learning_rate=0.01, reward_decay=0.9, e_greedy=0.9):
         self.actions = actions
         self.lr = learning_rate
@@ -34,7 +34,7 @@ class QLearningTable:
         q_predict = self.q_table.loc[s, a]
 
         if s_ != 'terminal':
-            q_target = r + self.gamma * self.q_table.loc[s_, :].max()
+            q_target = r + self.gamma * self.q_table.loc[s_, self.choose_action(s_)]
         else:
             q_target = r
 
@@ -60,7 +60,7 @@ def update():
 
 if __name__ == "__main__":
     env = Maze()
-    RL = QLearningTable(actions=list(range(env.n_actions)))
+    RL = SarsaTable(actions=list(range(env.n_actions)))
 
     env.after(100, update)
     env.mainloop()

@@ -77,7 +77,6 @@ class DQN():
             reward = torch.tensor([t.reward for t in self.memory]).float()
             next_state = torch.tensor([t.next_state for t in self.memory]).float()
 
-            reward = (reward - reward.mean()) / (reward.std() + 1e-7)
             with torch.no_grad(): # 对target_v计算中所有涉及到的图节点不进行更新
                 target_v = reward + self.args.gamma * self.target_net(next_state).max(1)[0]
 
@@ -101,16 +100,28 @@ class DQN():
             print("Memory Buff is too less, Now is collecting...")
 
 
+def reward_func(env, x, x_dot, theta, theta_dot):
+    r1 = (env.x_threshold - abs(x)) / env.x_threshold - 0.5
+    r2 = (env.theta_threshold_radians - abs(theta)) / env.theta_threshold_radians - 0.5
+
+    return r1 + r2 # 需自己定义reward，gym提供的会使得模型无法收敛
+
+
 def main(args):
     agent = DQN(args)
 
     for n_ep in range(args.n_episodes):
         state = env.reset()
+        ep_reward = 0.0 # 记录一个episode能够拿到的整体收益
         if args.render: env.render()
 
         for t in range(10000):
             action = agent.choose_action(state)
-            next_state, reward, done, info = env.step(action)
+            next_state, _, done, info = env.step(action)
+
+            x, x_dot, theta, theta_dot = next_state
+            reward = reward_func(env, x, x_dot, theta, theta_dot)
+            ep_reward += reward
 
             if args.render: env.render()
             transition = Transition(state, action, reward, next_state)
@@ -120,7 +131,8 @@ def main(args):
                 agent.writer.add_scalar('live/finish_step', t+1, global_step=n_ep) # 记录每一轮在第几步结束
                 agent.learn()
 
-                if n_ep % 10 == 0: print("episode {}, step is {}".format(n_ep, t))
+                if n_ep % 10 == 0:
+                    print("episode {}, step is {}, the episode reward is {}".format(n_ep, t, round(ep_reward, 3)))
                 break
 
             state = next_state

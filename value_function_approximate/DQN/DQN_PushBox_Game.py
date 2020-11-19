@@ -12,8 +12,9 @@ from tensorboardX import SummaryWriter
 
 
 # Environment Config
-env = gym.make('CartPole-v0').unwrapped
-num_state = env.observation_space.shape[0]
+env = gym.make("pushBox-v0")
+
+num_state = 4
 num_action = env.action_space.n
 Transition = namedtuple('Transition', ['state', 'action', 'reward', 'next_state'])
 
@@ -77,6 +78,7 @@ class DQN():
             reward = torch.tensor([t.reward for t in self.memory]).float()
             next_state = torch.tensor([t.next_state for t in self.memory]).float()
 
+            reward = (reward - reward.mean()) / (reward.std() + 1e-7)
             with torch.no_grad(): # 对target_v计算中所有涉及到的图节点不进行更新
                 target_v = reward + self.args.gamma * self.target_net(next_state).max(1)[0]
 
@@ -100,13 +102,6 @@ class DQN():
             print("Memory Buff size is {}, Now is collecting more...".format(self.memory_count))
 
 
-def reward_func(env, x, x_dot, theta, theta_dot):
-    r1 = (env.x_threshold - abs(x)) / env.x_threshold - 0.5
-    r2 = (env.theta_threshold_radians - abs(theta)) / env.theta_threshold_radians - 0.5
-
-    return r1 + r2 # 需自己定义reward，gym提供的会使得模型无法收敛
-
-
 def main(args):
     agent = DQN(args)
 
@@ -117,10 +112,7 @@ def main(args):
 
         for t in range(10000):
             action = agent.choose_action(state)
-            next_state, _, done, info = env.step(action)
-
-            x, x_dot, theta, theta_dot = next_state
-            reward = reward_func(env, x, x_dot, theta, theta_dot)
+            next_state, reward, done, info = env.step(action)
             ep_reward += reward
 
             if args.render: env.render()
@@ -144,11 +136,11 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--batch_size', type=int, default=256)
     parser.add_argument('--n_episodes', type=int, default=2000)
-    parser.add_argument('--capacity', type=int, default=8000)
+    parser.add_argument('--capacity', type=int, default=1000)
     parser.add_argument('--gamma', type=float, default=0.995)
     parser.add_argument('--learning_rate', type=float, default=1e-3)
     parser.add_argument('--render', type=bool, default=True)
-    parser.add_argument('--logs', type=str, default='logs/DQN_CartPole_V0')
+    parser.add_argument('--logs', type=str, default='logs/DQN_PushBox_Game')
     args = parser.parse_args()
     print(args)
 

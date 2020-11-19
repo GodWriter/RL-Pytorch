@@ -30,7 +30,7 @@ class Net(nn.Module):
 
     def forward(self, x):
         x = F.relu(self.fc1(x))
-        action_value = self.fc2(x)
+        action_value = self.fc2(x) # 输出为动作所对应的得分
         return action_value
 
 
@@ -77,6 +77,11 @@ class DQN():
             reward = torch.tensor([t.reward for t in self.memory]).float()
             next_state = torch.tensor([t.next_state for t in self.memory]).float()
 
+            print("state: ", state)
+            print("action: ", action)
+            print("reward: ", reward)
+            print("next_state: ", next_state)
+
             reward = (reward - reward.mean()) / (reward.std() + 1e-7)
             with torch.no_grad():
                 target_v = reward + self.args.gamma * self.target_net(next_state).max(1)[0]
@@ -88,7 +93,10 @@ class DQN():
                 eval_v = (self.eval_net(state).gather(1, action))[idx]
                 loss = self.loss_func(target_v[idx].unsqueeze(1), eval_v)
 
+                self.optimizer.zero_grad()
+                loss.backward()
                 self.optimizer.step()
+
                 self.writer.add_scalar('loss/value_loss', loss, self.update_count)
                 self.update_count += 1
 

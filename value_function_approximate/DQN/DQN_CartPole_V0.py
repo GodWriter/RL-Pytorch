@@ -5,6 +5,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.utils.data.sampler import BatchSampler, SubsetRandomSampler
 
 from collections import namedtuple
 from tensorboardX import SummaryWriter
@@ -46,6 +47,7 @@ class DQN():
         self.optimizer = torch.optim.Adam(self.eval_net.parameters(), self.args.learning_rate)
 
         self.memory_count = 0
+        self.update_count = 0
         self.writer = SummaryWriter(self.args.logs)
 
     def store_transition(self, transition):
@@ -68,6 +70,33 @@ class DQN():
 
         return action
 
+    def learn(self):
+        if self.memory_count >= self.args.capacity:
+            state = torch.tensor([t.state for t in self.memory]).float()
+            action = torch.LongTensor([t.action for t in self.memory]).view(-1, 1).long()
+            reward = torch.tensor([t.reward for t in self.memory]).float()
+            next_state = torch.tensor([t.next_state for t in self.memory]).float()
+
+            reward = (reward - reward.mean()) / (reward.std() + 1e-7)
+            with torch.no_grad():
+                target_v = reward + self.args.gamma * self.target_net(next_state).max(1)[0]
+
+            # Training
+            for idx in BatchSampler(SubsetRandomSampler(range(len(self.memory))),
+                                    batch_size=self.args.batch_size,
+                                    drop_last=False):
+                eval_v = (self.eval_net(state).gather(1, action))[idx]
+                loss = self.loss_func(target_v[idx].unsqueeze(1), eval_v)
+
+                self.optimizer.step()
+                self.writer.add_scalar('loss/value_loss', loss, self.update_count)
+                self.update_count += 1
+
+                if self.update_count % 100 == 0:
+                    self.target_net.load_state_dict(self.eval_net.state_dict())
+        else:
+            print("Memory Buff is too less, Now is collecting...")
+
 
 def main(args):
     agent = DQN(args)
@@ -85,7 +114,7 @@ def main(args):
             agent.store_transition(transition)
 
             if done or t >= 9999:
-                agent.writer.add_scalar('DQN_CartPole_V0/finish_step', t+1, global_step=n_ep) # 记录每一轮在第几步结束
+                agent.writer.add_scalar('live/finish_step', t+1, global_step=n_ep) # 记录每一轮在第几步结束
                 agent.learn()
 
                 if n_ep % 10 == 0: print("episode {}, step is {}".format(n_ep, t))
@@ -99,7 +128,6 @@ if __name__ == '__main__':
     parser.add_argument('--batch_size', type=int, default=256)
     parser.add_argument('--n_episodes', type=int, default=2000)
     parser.add_argument('--capacity', type=int, default=8000)
-    parser.add_argument('--update_count', type=int, default=0)
     parser.add_argument('--gamma', type=float, default=0.995)
     parser.add_argument('--learning_rate', type=float, default=1e-3)
     parser.add_argument('--render', type=bool, default=True)

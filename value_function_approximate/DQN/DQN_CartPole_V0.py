@@ -77,13 +77,8 @@ class DQN():
             reward = torch.tensor([t.reward for t in self.memory]).float()
             next_state = torch.tensor([t.next_state for t in self.memory]).float()
 
-            print("state: ", state)
-            print("action: ", action)
-            print("reward: ", reward)
-            print("next_state: ", next_state)
-
             reward = (reward - reward.mean()) / (reward.std() + 1e-7)
-            with torch.no_grad():
+            with torch.no_grad(): # 对target_v计算中所有涉及到的图节点不进行更新
                 target_v = reward + self.args.gamma * self.target_net(next_state).max(1)[0]
 
             # Training
@@ -127,6 +122,8 @@ def main(args):
 
                 if n_ep % 10 == 0: print("episode {}, step is {}".format(n_ep, t))
                 break
+
+            state = next_state
 
     print("Training is Done!!!")
 

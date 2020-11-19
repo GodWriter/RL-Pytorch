@@ -73,7 +73,7 @@ class Maze(tk.Tk, object):
 
     def reset(self):
         self.update()
-        # time.sleep(0.5)
+        time.sleep(0.5)
 
         self.canvas.delete(self.rect)
 

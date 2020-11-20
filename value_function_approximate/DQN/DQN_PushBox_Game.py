@@ -136,7 +136,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--batch_size', type=int, default=256)
     parser.add_argument('--n_episodes', type=int, default=1200)
-    parser.add_argument('--capacity', type=int, default=1000)
+    parser.add_argument('--capacity', type=int, default=2000)
     parser.add_argument('--gamma', type=float, default=0.995)
     parser.add_argument('--learning_rate', type=float, default=1e-3)
     parser.add_argument('--render', type=bool, default=True)

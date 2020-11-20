@@ -20,3 +20,10 @@ cd morvan_maze_game
 python QLearning.py
 python Sarsa.py
 ```
+
+> Value Function Approximate
+```bash
+cd value_functoin_approximate
+cd DQN
+python DQN_Maze_Env.py
+```

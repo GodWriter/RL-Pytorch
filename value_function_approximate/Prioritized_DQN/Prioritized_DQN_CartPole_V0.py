@@ -5,10 +5,7 @@ import numpy as np
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-from torch.utils.data.sampler import BatchSampler, SubsetRandomSampler
 
-from collections import namedtuple
 from tensorboardX import SummaryWriter
 
 
@@ -16,7 +13,6 @@ from tensorboardX import SummaryWriter
 env = gym.make('CartPole-v0').unwrapped
 num_state = env.observation_space.shape[0]
 num_action = env.action_space.n
-Transition = namedtuple('Transition', ['state', 'action', 'reward', 'next_state'])
 
 # CUDA
 device = 'cpu' if not torch.cuda.is_available() else 'cuda:0'
@@ -43,7 +39,6 @@ class NaivePrioritizedBuffer(object):
 class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
-
         self.layers = nn.Sequential(nn.Linear(num_state, 128),
                                     nn.ReLU(),
                                     nn.Linear(128, 128),

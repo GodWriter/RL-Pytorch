@@ -346,7 +346,7 @@ if __name__ == '__main__':
     parser.add_argument('--gamma', type=float, default=0.99)
     parser.add_argument('--learning_rate', type=float, default=1e-3)
     parser.add_argument('--render', type=bool, default=True)
-    parser.add_argument('--logs', type=str, default='logs/Prioritized_DQN_CartPole_V0')
+    parser.add_argument('--logs', type=str, default='logs/Prioritized_DQN_Maze_Env')
     args = parser.parse_args()
     print(args)
 

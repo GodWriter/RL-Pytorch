@@ -21,16 +21,61 @@ device = torch.device(device)
 
 class NaivePrioritizedBuffer(object):
     def __init__(self, capacity, prob_alpha=0.6):
-        pass
+        self.capacity = capacity
+        self.prob_alpha = prob_alpha
+
+        self.pos = 0
+        self.buffer = []
+
+        self.priorities = np.zeros((capacity,), dtype=np.float32)
 
     def push(self, state, action, reward, next_state, done):
-        pass
+        assert state.ndim == next_state.ndim
+
+        state = np.expand_dims(state, 0)
+        next_state = np.expand_dims(next_state, 0)
+
+        max_prio = self.priorities.max() if self.buffer else 1.0 # 初始的概率都是等高的，这个设置1，2，3都可以，相等即可
+
+        if len(self.buffer) < self.capacity:
+            self.buffer.append((state, action, reward, next_state, done))
+        else:
+            self.buffer[self.pos] = (state, action, reward, next_state, done)
+
+        self.priorities[self.pos] = max_prio # 令新样本优先级为当前最高，以保证每个样本至少被利用一次
+        self.pos = (self.pos + 1) % self.capacity
 
     def sample(self, batch_size, beta=0.4):
-        pass
+        if len(self.buffer) == self.capacity:
+            prios = self.priorities
+        else:
+            prios = self.priorities[:self.pos]
+
+        # 根据概率分布采样一个样本点
+        probs = prios ** self.prob_alpha
+        probs /= probs.sum()
+
+        indices = np.random.choice(len(self.buffer), batch_size, p=probs)
+        samples = [self.buffer[idx] for idx in indices]
+
+        # 计算样本点的重要性权重
+        total = len(self.buffer)
+        weights = (total * probs[indices]) ** (-beta)
+        weights /= weights.max()
+        weights = np.array(weights, dtype=np.float32)
+
+        batch = zip(*samples)
+        states = np.concatenate(batch[0])
+        actions = batch[1]
+        rewards = batch[2]
+        next_states = np.concatenate(batch[3])
+        dones = batch[4]
+
+        return states, actions, rewards, next_states, dones, indices, weights
 
     def update_priorities(self, batch_indices, batch_priorities):
-        pass
+        for idx, prio in zip(batch_indices, batch_priorities):
+            self.priorities[idx] = prio # TD偏差越大的，被采样到的概率越高
 
     def __len__(self):
         return len(self.buffer)
@@ -66,7 +111,7 @@ class PrioritizedDQN():
 
     def choose_action(self, state, epsilon):
         if np.random.rand(1) > epsilon:
-            state = torch.tensor(state, dtype=torch.float).unsqueeze(0)
+            state = torch.tensor(state, dtype=torch.float).unsqueeze(0).to(device)
             value = self.eval_net(state)
 
             _, idx = torch.max(value, 1)
@@ -88,10 +133,11 @@ class PrioritizedDQN():
             weights = torch.FloatTensor(weights).to(device)
 
             eval_v = self.eval_net(state)
+            next_eval_v = self.eval_net(next_state)
             target_v = self.target_net(next_state)
 
             q_v = eval_v.gather(1, action.unsqueeze(1)).squeeze(1)
-            next_q_v = target_v.max(1)[0]
+            next_q_v = target_v.gather(1, torch.max(next_eval_v, 1)[1].unsqueeze(1)).squeeze(1)
             expected_q_v = reward + self.args.gamma * next_q_v * (1 - done)
 
             loss = (q_v - expected_q_v.detach()).pow(2) * weights
